@@ -11,34 +11,17 @@ uint8_t keys[9] = {'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'};
 uint8_t octave_up = 'x';
 uint8_t octave_down = 'z';
 long lastKeyTime;
+uint8_t curKey = 'a', lastKey = 'l';
 
 //确定x为负还是正
 int operation;
 
 //探测画幅, 单位为 0.1mm, 1000为1米
-int left_width = 200; 
+int left_width = 200;
 int right_width = 200;
 //雷达悬挂高度，2000为2米
 int height = 200;
 
-//*******************MIDI**************************
-
-void noteOn(byte channel, byte pitch, byte velocity) {
-  midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};
-  MidiUSB.sendMIDI(noteOn);
-}
-
-void noteOff(byte channel, byte pitch, byte velocity) {
-  midiEventPacket_t noteOff = {0x08, 0x80 | channel, pitch, velocity};
-  MidiUSB.sendMIDI(noteOff);
-}
-
-void controlChange(byte channel, byte control, byte value) {
-  midiEventPacket_t event = {0x0B, 0xB0 | channel, control, value};
-  MidiUSB.sendMIDI(event);
-}
-
-//*************************************************
 void setup() {
   Serial.begin(115200);
   Serial1.begin(115200);
@@ -61,7 +44,7 @@ void loop() {
       byte  quality  = lidar.getCurrentPoint().quality; //quality of the current measurement
 
       //如果检测到距离，开始工作
-      if (distance > 0) { 
+      if (distance > 0) {
         // 左边扇形与右边扇形度数处理
         if (angle >= 270) {
           angle = 360 - angle;
@@ -77,12 +60,19 @@ void loop() {
 
         //RPLIDAR CABLE往上, 所以处理 0 - 90 与 270 - 360
         if (x > -left_width && x < right_width && y < height && ((angle >= 0 && angle <= 90) || (angle >= 270 && angle <= 360))) {
-          Serial.print(x);
-          Serial.print(",");
-          Serial.println(y);
-          noteOn(0, map(curDistance, -left_width, right_width, 48, 68), 120);
-          //Keyboard.write(keys[int(map(x, -left_width, right_width, 0, sizeof(keys)))]);
-          delay(50);
+          //          Serial.print(x);
+          //          Serial.print(",");
+          //          Serial.print(y);
+          curKey = keys[int(map(x, -left_width, right_width, 0, sizeof(keys)))];
+          if (curKey != lastKey) {
+            Keyboard.write(curKey);
+            lastKey = curKey;
+            lastKeyTime = millis();
+            delay(10);
+          }
+        }
+        if (millis() > lastKeyTime + 30) {
+          lastKey = 0;
         }
       }
     } else {
